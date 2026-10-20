@@ -1,0 +1,28 @@
+name: Public Showcase Safety
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  public-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          grep -q '^repository_class: public-showcase$' .osystic/repository.yml
+          grep -q '^visibility: public$' .osystic/repository.yml
+          grep -q '^  source_code_included: false$' .osystic/repository.yml
+          grep -q '^  contact_information_included: false$' .osystic/repository.yml
+      - run: |
+          required=(README.md case-study.md SECURITY.md NOTICE.md assets/architecture.svg assets/validation.svg docs/technical-overview.md docs/validation-evidence.md docs/disclosure-boundary.md docs/standardization-acceptance.md .osystic/repository.yml)
+          for path in "${required[@]}"; do test -f "$path" || exit 1; done
+      - run: |
+          if git ls-files | grep -Ei '\.(js|jsx|ts|tsx|swift|kt|java|py|cpp|c|h|cs|razor|mq4|mq5|pine)$'; then exit 1; fi
+      - run: |
+          files=(); while IFS= read -r -d '' path; do case "$path" in *.svg|*.png|*.jpg|*.jpeg|*.gif|*.pdf) ;; *) files+=("$path") ;; esac; done < <(git ls-files -z)
+          if (("${#files[@]}")) && grep -EIn --binary-files=without-match '([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,}' "${files[@]}"; then exit 1; fi
+      - run: |
+          grep -Fq 'PUBLIC SHOWCASE · SANITIZED · PORTFOLIO-SAFE' README.md
+          grep -Fq 'Public vs. private repository boundary' README.md
